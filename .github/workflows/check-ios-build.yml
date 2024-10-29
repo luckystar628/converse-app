@@ -1,0 +1,55 @@
+name: iOS App Build
+
+on:
+  pull_request:
+    branches:
+      - main
+      - release/*
+    paths:
+      - "ios/**"
+      - "package.json"
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Setup repo
+        uses: actions/checkout@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4.0.2
+        with:
+          node-version: 18.x
+          cache: "yarn"
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: |
+          yarn install
+          yarn cache clean
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf ~/Library/Developer/Xcode/DerivedData/*
+          sudo rm -rf /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/CoreSimulator/Profiles/Runtimes/*
+          sudo rm -rf ~/Library/Developer/CoreSimulator/Devices/*
+          sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/*
+
+      - name: Build iOS app
+        run: eas build --profile ios-simulator --platform ios --local --non-interactive --output ${{ github.workspace }}/app-release.ipa
+
+      - name: Clean up Derived Data and Cache
+        run: |
+          rm -rf ~/Library/Developer/Xcode/DerivedData/*
+          rm -rf ~/Library/Caches/expo/*
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: ${{ github.workspace }}/app-release.ipa
